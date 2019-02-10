@@ -4,7 +4,16 @@ MAIN = function(data_folder = NA) {
   
     if (!require("rstudioapi")) install.packages("rstudioapi"); library("rstudioapi")
     if (!require("readxl")) install.packages("readxl"); library("readxl")
-    
+    # if (!require("magick")) install.packages("magick"); library("magick")
+    # https://dahtah.github.io/imager/imager.html#resizing-rotation-etc.
+    if (!require("imager")) install.packages("imager"); library("imager")
+    if (!require("jpeg")) install.packages("jpeg"); library("jpeg")
+    source("http://bioconductor.org/biocLite.R")
+    # sudo apt install libcurl4-openssl-dev libfftw3-dev
+    # https://stackoverflow.com/questions/41839214/installation-path-not-writable-r-unable-to-update-packages
+    biocLite("EBImage")
+    library("EBImage")
+  
     # use the default if no a
     if (is.na(data_folder) | !exists("data_folder")) {
       
@@ -53,12 +62,15 @@ MAIN = function(data_folder = NA) {
   
     # Delete the unwanted images and move the files to subfolders
     folder_key = 'SL'
-    filter.images.on.disk(labels_list, image_folder = data_out_paths[[folder_key]])
+    filter.images.on.disk(labels_list, image_folder = data_out_paths[[folder_key]],
+                          resize_and_crop_images = TRUE)
   
 }
 
-filter.images.on.disk = function(labels_list, image_folder,
-                                 folder_names = c('Open', 'Closed')) {
+filter.images.on.disk = function(labels_list, image_folder, 
+                                 folder_names = c('Open', 'Closed'),
+                                 resize_and_crop_images = TRUE,
+                                 size_out = c(299,299), rect_crop = TRUE) {
   
   filenames = list.files(image_folder, pattern = '*.jpg', recursive = FALSE, full.names = FALSE)
   filepaths = list.files(image_folder, pattern = '*.jpg', recursive = FALSE, full.names = TRUE)
@@ -90,13 +102,54 @@ filter.images.on.disk = function(labels_list, image_folder,
     }
     
     for (f in 1 : length(files_to_move)) {
+      cat(' ... ... ... file = ', filenames_to_move[f], 'n')
       from = files_to_move[f]
       to = file.path(path_out, filenames_to_move[f])
-      success = file.rename(from, to)
+      if (resize_and_crop_images) {
+        process.images.before.moving(from, to, size_out, rect_crop)
+      } else {
+        success = file.rename(from, to)  
+      }
     }
-    
   }
+}
+
+
+process.images.before.moving = function(from, to, size_out, rect_crop) {
   
+  # e.g. 299x299 for Inception
+  # e.g. 224x224 for ResNet
+  # and then you can modify your architecture if you do not want this resizing
+  
+  # TODO! for a simple operation, we needed 3 different libraries
+  
+  im = load.image(from)
+  
+  if ( dim(im)[1] < dim(im)[2] ) {
+    x_ind = c(1, dim(im)[1])
+    margins = abs((dim(im)[2] - dim(im)[1])) / 2 # center this
+    y_ind = c(margins+1, dim(im)[2] - margins)
+  } else {
+    y_ind = c(1, dim(im)[2])
+    # center this
+    margins = abs((dim(im)[2] - dim(im)[1])) / 2 # center this
+    x_ind = c(margins+1, dim(im)[1] - margins)
+  }
+  min_dim = min(c(dim(im)[1], dim(im)[2]))
+  
+  # CROP
+  im_cropped = im[x_ind[1]:x_ind[2], y_ind[1]:y_ind[2], ]
+  
+  # RESIZE
+  factor = size_out[1] / min_dim
+  im_resized <- EBImage::resize(im_cropped, w = size_out[1], h = size_out[2])
+  
+  # Write to disk, we need to swap x and y now 
+  im_resized = aperm(im_resized, c(2,1,3))
+  writeJPEG(im_resized, to)
+  
+  # remove then from source
+  file.remove(from)
   
   
 }
