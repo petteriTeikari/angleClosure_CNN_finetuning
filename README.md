@@ -27,8 +27,8 @@ And let the R script `MAIN.R` hunt for the "SL" and "1" wildcards
 ### 2) Quick'n'dirty deep learning
 
 Follow the example _"Fine-tune InceptionV3 on a new set of classes"_ 
-https://keras.io/applications/#fine-tune-inceptionv3-on-a-new-set-of-classes
-https://blog.keras.io/building-powerful-image-classification-models-using-very-little-data.html
-https://github.com/danielvarga/keras-finetuning
+* https://keras.io/applications/#fine-tune-inceptionv3-on-a-new-set-of-classes
+* https://blog.keras.io/building-powerful-image-classification-models-using-very-little-data.html
+* https://github.com/danielvarga/keras-finetuning
 
 
